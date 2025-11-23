@@ -1,0 +1,127 @@
+services:
+  db:
+    container_name: ust-task-db
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ust
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  redis:
+    container_name: ust-task-redis
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  country-service:
+    container_name: ust-task-country-service
+    build: ./country_service
+    env_file:
+      - .env
+    volumes:
+      - ./country_service:/app
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - API_COUNTRIES_URL=${API_COUNTRIES_URL}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST}
+      - EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT}
+      - EMAIL_SMTP_USER=${EMAIL_SMTP_USER}
+      - EMAIL_SMTP_PASS=${EMAIL_SMTP_PASS}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - "8000:8000"
+    command: ["gunicorn", "app:app", "-b", "0.0.0.0:8000", "--workers", "1"]
+    restart: on-failure
+
+  worker:
+    container_name: ust-task-worker
+    build: ./country_service
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - PYTHONPATH=/app
+    command: ["celery", "-A", "celery_app.celery", "worker", "--loglevel=info"]
+    restart: on-failure
+
+  beat:
+    container_name: ust-task-beat
+    build: ./country_service
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - PYTHONPATH=/app
+    command: ["celery", "-A", "celery_app.celery", "beat", "--loglevel=info"]
+    restart: on-failure
+
+  notification-service:
+    container_name: ust-task-notification-service
+    build: ./notification_service
+    env_file:
+      - .env
+    volumes:
+      - ./notification_service:/app
+    depends_on:
+      redis:
+        condition: service_started
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST}
+      - EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT}
+      - EMAIL_SMTP_USER=${EMAIL_SMTP_USER}
+      - EMAIL_SMTP_PASS=${EMAIL_SMTP_PASS}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+    ports:
+      - "8020:8020"
+    restart: on-failure
+
+  frontend:
+    container_name: ust-task-frontend
+    image: python:3.11-slim
+    volumes:
+      - ./frontend:/usr/src/app:ro
+    working_dir: /usr/src/app
+    command: ["sh", "-c", "python -m http.server 3000"]
+    ports:
+      - "3000:3000"
+    depends_on:
+      country-service:
+        condition: service_started
+
+volumes:
+  db-data:

@@ -1,0 +1,16 @@
+Flask==2.3.3
+Werkzeug==2.3.8
+Flask-GraphQL==2.0.1
+graphene==2.1.9
+graphene-sqlalchemy==2.3.0
+SQLAlchemy==1.4.52
+psycopg2-binary==2.9.9
+alembic==1.12.1
+redis==5.0.1
+celery==5.3.6
+requests==2.31.0
+python-dotenv==1.0.0
+pytest==7.4.3
+factory_boy==3.3.0
+Flask-Cors==4.0.0
+gunicorn==21.2.0
