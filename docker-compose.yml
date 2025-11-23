@@ -10,6 +10,7 @@ services:
       - "5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
@@ -22,6 +23,7 @@ services:
     image: redis:7
     ports:
       - "6379:6379"
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
       interval: 5s
@@ -36,6 +38,7 @@ services:
       - .env
     volumes:
       - ./country_service:/app
+    restart: unless-stopped
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
@@ -56,7 +59,6 @@ services:
     ports:
       - "8000:8000"
     command: ["gunicorn", "app:app", "-b", "0.0.0.0:8000", "--workers", "1"]
-    restart: on-failure
 
   worker:
     container_name: ust-task-worker
@@ -71,7 +73,7 @@ services:
     environment:
       - PYTHONPATH=/app
     command: ["celery", "-A", "celery_app.celery", "worker", "--loglevel=info"]
-    restart: on-failure
+    restart: unless-stopped
 
   beat:
     container_name: ust-task-beat
@@ -86,7 +88,7 @@ services:
     environment:
       - PYTHONPATH=/app
     command: ["celery", "-A", "celery_app.celery", "beat", "--loglevel=info"]
-    restart: on-failure
+    restart: unless-stopped
 
   notification-service:
     container_name: ust-task-notification-service
@@ -108,20 +110,17 @@ services:
       - ADMIN_EMAILS=${ADMIN_EMAILS}
     ports:
       - "8020:8020"
-    restart: on-failure
+    restart: unless-stopped
 
   frontend:
     container_name: ust-task-frontend
-    image: python:3.11-slim
-    volumes:
-      - ./frontend:/usr/src/app:ro
-    working_dir: /usr/src/app
-    command: ["sh", "-c", "python -m http.server 3000"]
+    build: ./frontend
     ports:
-      - "3000:3000"
+      - "8080:80"
     depends_on:
       country-service:
         condition: service_started
+    restart: unless-stopped
 
 volumes:
   db-data:
