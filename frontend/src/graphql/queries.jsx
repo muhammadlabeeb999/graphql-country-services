@@ -42,6 +42,7 @@ query Countries($limit: Int = 10, $offset: Int = 0) {
     capital
     region
     population
+    flagUrl
   }
 }
 `
@@ -58,6 +59,7 @@ query CountriesNear($latitude: Float!, $longitude: Float!, $radiusKm: Float = 50
     population
     latitude
     longitude
+    flagUrl
   }
 }
 `

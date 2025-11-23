@@ -2,89 +2,78 @@ import React, { useState } from 'react'
 import { GET_COUNTRY_BY_NAME } from '../graphql/queries'
 import { graphqlFetch } from '../graphql/fetcher'
 
-const graphqlUrl = import.meta.env.VITE_GRAPHQL_URL || '/graphql'
-
 export default function CountrySearch() {
-  const [name, setName] = useState('')
-  const [country, setCountry] = useState(null)
-  const [notFound, setNotFound] = useState(false)
-  const [error, setError] = useState(null)
-  const [loading, setLoading] = useState(false)
+    const [name, setName] = useState('')
+    const [country, setCountry] = useState(null)
+    const [notFound, setNotFound] = useState(false)
+    const [error, setError] = useState(null)
+    const [loading, setLoading] = useState(false)
 
-  async function search(e) {
-    e?.preventDefault()
-    setError(null)
-    setNotFound(false)
-    setCountry(null)
+    async function search(e) {
+        e?.preventDefault()
+        setError(null)
+        setNotFound(false)
+        setCountry(null)
 
-    if (!name.trim()) return
+        if (!name.trim()) return
 
-    try {
-      setLoading(true)
+        try {
+            setLoading(true)
+            const data = await graphqlFetch({
+                query: GET_COUNTRY_BY_NAME,
+                variables: { name }
+            })
 
-      const res = await fetch(graphqlUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: GET_COUNTRY_BY_NAME, variables: { name } })
-      })
+            const c = data.country
 
-      const contentType = res.headers.get('content-type') || ''
-      if (!contentType.includes('application/json')) {
-        const text = await res.text()
-        throw new Error('Expected JSON, got: ' + text.slice(0, 200))
-      }
+            if (!c) {
+                setNotFound(true)
+            } else {
+                setCountry(c)
+            }
 
-      const json = await res.json()
-      if (json.errors) {
-        setError(json.errors[0].message)
-        return
-      }
-
-      const c = json.data.country
-
-      if (!c) {
-        setNotFound(true)
-      } else {
-        setCountry(c)
-      }
-
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setLoading(false)
+        }
     }
-  }
 
-  return (
-    <div>
-      <h2>Search country by name</h2>
-      <form onSubmit={search} style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. India"
-          required
-        />
-        <button type="submit" disabled={loading}>
-          {loading ? 'Searching…' : 'Search'}
-        </button>
-      </form>
+    return (
+        <div className="card">
+            <h2>Search Country by Name</h2>
+            <form onSubmit={search} style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                <input
+                    className="input"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. India"
+                    required
+                />
+                <button type="submit" className="btn" disabled={loading}>
+                    {loading ? 'Searching…' : 'Search'}
+                </button>
+            </form>
 
-      {error && <div style={{ color: 'crimson' }}>Error: {error}</div>}
-      {notFound && !error && <div style={{ color: 'gray' }}>No country found.</div>}
+            {error && <div className="error-msg">Error: {error}</div>}
+            {notFound && !error && <div style={{ color: 'gray' }}>No country found.</div>}
 
-      {country && (
-        <div style={{ border: '1px solid #ddd', padding: 12, borderRadius: 8 }}>
-          <h3>{country.name} ({country.alpha2Code})</h3>
-          <div>Capital: {country.capital}</div>
-          <div>Region: {country.region} — {country.subregion}</div>
-          <div>Population: {country.population}</div>
-          <div>Coordinates: {country.latitude}, {country.longitude}</div>
-          {country.flagUrl && (
-            <img src={country.flagUrl} alt="flag" style={{ height: 40, marginTop: 8 }} />
-          )}
+            {country && (
+                <div className="country-card" style={{ maxWidth: 400 }}>
+                    {country.flagUrl && (
+                        <div className="flag-container">
+                            <img src={country.flagUrl} alt={`${country.name} flag`} className="flag-img" />
+                        </div>
+                    )}
+                    <div className="country-info">
+                        <div className="country-name">{country.name} ({country.alpha2Code})</div>
+                        <div className="country-detail"><strong>Capital:</strong> {country.capital}</div>
+                        <div className="country-detail"><strong>Region:</strong> {country.region} — {country.subregion}</div>
+                        <div className="country-detail"><strong>Population:</strong> {country.population}</div>
+                        <div className="country-detail"><strong>Coordinates:</strong> {country.latitude}, {country.longitude}</div>
+                    </div>
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  )
+    )
 }

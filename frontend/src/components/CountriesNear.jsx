@@ -4,93 +4,103 @@ import { GET_COUNTRIES_NEAR } from '../graphql/queries'
 import { graphqlFetch } from '../graphql/fetcher'
 
 export default function CountriesNear() {
-  const [latitude, setLatitude] = useState('')
-  const [longitude, setLongitude] = useState('')
-  const [radius, setRadius] = useState(500) // optional, but not exposed in UI if you don't want it
-  const [limit, setLimit] = useState(10)
-  const [results, setResults] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [err, setErr] = useState(null)
+    const [latitude, setLatitude] = useState('')
+    const [longitude, setLongitude] = useState('')
+    const [radius, setRadius] = useState(500)
+    const [limit, setLimit] = useState(10)
+    const [results, setResults] = useState([])
+    const [loading, setLoading] = useState(false)
+    const [err, setErr] = useState(null)
 
-  async function search(e) {
-    e?.preventDefault()
-    setErr(null)
-    setResults([])
+    async function search(e) {
+        e?.preventDefault()
+        setErr(null)
+        setResults([])
 
-    // required validation
-    if (latitude === '' || latitude === null) {
-      setErr('Latitude is required.')
-      return
+        // required validation
+        if (latitude === '' || latitude === null) {
+            setErr('Latitude is required.')
+            return
+        }
+        if (longitude === '' || longitude === null) {
+            setErr('Longitude is required.')
+            return
+        }
+        if (isNaN(Number(latitude))) {
+            setErr('Latitude must be a number.')
+            return
+        }
+        if (isNaN(Number(longitude))) {
+            setErr('Longitude must be a number.')
+            return
+        }
+
+        setLoading(true)
+        try {
+            const vars = {
+                latitude: parseFloat(latitude),
+                longitude: parseFloat(longitude),
+                radiusKm: parseFloat(radius),
+                limit: parseInt(limit, 10)
+            }
+
+            const data = await graphqlFetch({ query: GET_COUNTRIES_NEAR, variables: vars })
+            setResults(data.countriesNear || [])
+        } catch (e) {
+            setErr(e.message)
+        } finally {
+            setLoading(false)
+        }
     }
-    if (longitude === '' || longitude === null) {
-      setErr('Longitude is required.')
-      return
-    }
-    if (isNaN(Number(latitude))) {
-      setErr('Latitude must be a number.')
-      return
-    }
-    if (isNaN(Number(longitude))) {
-      setErr('Longitude must be a number.')
-      return
-    }
 
-    setLoading(true)
-    try {
-      const vars = {
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
-        radiusKm: parseFloat(radius), // if backend expects radius_km, change in query/variables accordingly
-        limit: parseInt(limit, 10)
-      }
+    return (
+        <div className="card">
+            <h2>Search Countries Near (Lat/Lon)</h2>
+            <form onSubmit={search} className="grid-form" style={{ alignItems: 'end' }}>
+                <input
+                    className="input"
+                    required
+                    placeholder="Latitude *"
+                    value={latitude}
+                    onChange={(e) => setLatitude(e.target.value)}
+                    type="number"
+                    step="any"
+                />
+                <input
+                    className="input"
+                    required
+                    placeholder="Longitude *"
+                    value={longitude}
+                    onChange={(e) => setLongitude(e.target.value)}
+                    type="number"
+                    step="any"
+                />
+                <button type="submit" className="btn" disabled={loading}>
+                    {loading ? 'Searching…' : 'Search'}
+                </button>
+            </form>
 
-      const data = await graphqlFetch({ query: GET_COUNTRIES_NEAR, variables: vars })
-      // expecting minimal fields: latitude & longitude (per your requirement)
-      // GraphQL response field name here is countriesNear
-      setResults(data.countriesNear || [])
-    } catch (e) {
-      setErr(e.message)
-    } finally {
-      setLoading(false)
-    }
-  }
+            {err && <div className="error-msg">{err}</div>}
+            {loading && <div style={{ marginTop: '1rem' }}>Loading...</div>}
 
-  return (
-    <div>
-      <h2>Search countries near (lat/lon)</h2>
-      <form onSubmit={search} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <input
-          required
-          placeholder="Latitude *"
-          value={latitude}
-          onChange={(e) => setLatitude(e.target.value)}
-          type="number"
-          step="any"
-        />
-        <input
-          required
-          placeholder="Longitude *"
-          value={longitude}
-          onChange={(e) => setLongitude(e.target.value)}
-          type="number"
-          step="any"
-        />
-        <button type="submit" disabled={loading}>
-          {loading ? 'Searching…' : 'Search'}
-        </button>
-      </form>
-
-      {err && <div style={{ color: 'crimson', marginTop: 8 }}>{err}</div>}
-      {loading && <div>Loading...</div>}
-
-      <ul style={{ marginTop: 8 }}>
-        {results.map(c => (
-          <li key={c.id}>
-            <strong>{c.name}</strong> {c.alpha2Code && `(${c.alpha2Code})`} — {c.capital || '—'} — coords: {c.latitude ?? '—'},{c.longitude ?? '—'}
-          </li>
-        ))}
-      </ul>
-      {!loading && results.length === 0 && <div style={{ marginTop: 8 }}>No results</div>}
-    </div>
-  )
+            <div className="countries-grid" style={{ marginTop: '1.5rem' }}>
+                {results.map(c => (
+                    <div key={c.id} className="country-card">
+                        {c.flagUrl && (
+                            <div className="flag-container">
+                                <img src={c.flagUrl} alt={`${c.name} flag`} className="flag-img" />
+                            </div>
+                        )}
+                        <div className="country-info">
+                            <div className="country-name">{c.name}</div>
+                            <div className="country-detail">{c.alpha2Code}</div>
+                            <div className="country-detail"><strong>Capital:</strong> {c.capital || '—'}</div>
+                            <div className="country-detail"><strong>Coords:</strong> {c.latitude?.toFixed(2)}, {c.longitude?.toFixed(2)}</div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            {!loading && results.length === 0 && <div style={{ marginTop: '1rem', color: 'gray' }}>No results</div>}
+        </div>
+    )
 }
