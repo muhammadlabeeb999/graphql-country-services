@@ -1,4 +1,4 @@
-# UST Task - Country & Notification Service
+# GraphQL - Country & Notification Service
 
 A microservices-based application for managing country data and sending notifications.
 
@@ -11,7 +11,7 @@ A microservices-based application for managing country data and sending notifica
 
 ### Linux / macOS
 
-We provide a convenience script to set up the environment, build containers, and run migrations.
+A convenience script is provided to set up the environment, build containers, and run migrations.
 
 ```bash
 # 1. Create .env file
