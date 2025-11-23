@@ -3,6 +3,9 @@ from graphene_sqlalchemy import SQLAlchemyObjectType
 from models import Country as CountryModel
 from database import get_db_session
 from sqlalchemy import func
+from psycopg2.errors import UniqueViolation
+from sqlalchemy.exc import IntegrityError
+
 
 class CountryType(SQLAlchemyObjectType):
     class Meta:
@@ -78,6 +81,7 @@ class AddCountry(graphene.Mutation):
 
     ok = graphene.Boolean()
     country = graphene.Field(lambda: CountryType)
+    message = graphene.String()
 
     def mutate(self, info, country_data=None):
         db = get_db_session()
@@ -100,8 +104,20 @@ class AddCountry(graphene.Mutation):
             languages=country_data.languages,
             source='manual',
         )
-        db.add(country)
-        db.commit()
+        try:
+            db.add(country)
+            db.commit()
+        except IntegrityError as e:
+            db.rollback()
+            if isinstance(e.orig, UniqueViolation):
+                # Raise clean GraphQL error
+                raise Exception(f"Country with alpha2_code '{country_data.alpha2_code.upper()}' already exists.")
+            else:
+                raise Exception("Database error occurred while adding country.")
+        except Exception as e:
+            db.rollback()
+            raise
+            
         # trigger notification via Celery task (import here to avoid circular)
         try:
             from tasks import notify_country_added
