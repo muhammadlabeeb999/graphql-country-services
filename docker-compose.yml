@@ -36,8 +36,6 @@ services:
     build: ./country_service
     env_file:
       - .env
-    volumes:
-      - ./country_service:/app
     restart: unless-stopped
     environment:
       - DATABASE_URL=${DATABASE_URL}
@@ -51,6 +49,8 @@ services:
       - EMAIL_SMTP_USER=${EMAIL_SMTP_USER}
       - EMAIL_SMTP_PASS=${EMAIL_SMTP_PASS}
       - ADMIN_EMAILS=${ADMIN_EMAILS}
+      - INGEST_HOUR=${INGEST_HOUR}
+      - INGEST_MINUTE=${INGEST_MINUTE}
     depends_on:
       db:
         condition: service_healthy
@@ -95,8 +95,6 @@ services:
     build: ./notification_service
     env_file:
       - .env
-    volumes:
-      - ./notification_service:/app
     depends_on:
       redis:
         condition: service_started

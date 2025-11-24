@@ -8,11 +8,22 @@ celery = Celery('countries', broker=os.getenv('CELERY_BROKER_URL', REDIS), backe
 celery.conf.timezone = 'UTC'
 celery.conf.broker_connection_retry_on_startup = True
 
-# configure beat schedule: daily ingestion at 00:00 UTC (change as needed)
+# Parse cron values from environment variables
+def get_cron_value(name, default):
+    val = os.getenv(name, default).strip()
+    if not val:
+        return default
+    return val
+
+# Get cron values from environment variables
+minute = get_cron_value("INGEST_MINUTE", "0")
+hour = get_cron_value("INGEST_HOUR", "*")
+
+# Configure beat schedule: ingestion job
 celery.conf.beat_schedule = {
     'ingest-countries-daily': {
         'task': 'tasks.ingest_countries',
-        'schedule': crontab(minute='*/2'),
+        'schedule': crontab(minute=minute, hour=hour),
     }
 }
 

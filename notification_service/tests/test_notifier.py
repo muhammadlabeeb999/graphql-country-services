@@ -1,7 +1,6 @@
 import asyncio
 import json
 import pytest
-import types
 
 # We'll monkeypatch aioredis.from_url and email_client.send_email_async
 @pytest.mark.asyncio

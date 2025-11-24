@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-# simple test DB using sqlite in-memory for unit tests; for integration, use a Postgres test container
+# simple test DB using sqlite in-memory for unit tests
 TEST_DATABASE_URL = os.getenv('TEST_DATABASE_URL', 'sqlite:///:memory:')
 
 @pytest.fixture(scope='session')

@@ -5,24 +5,29 @@ from celery_app import celery
 from database import get_db_session
 from models import Country as CountryModel
 from datetime import datetime
+from celery.signals import worker_ready
 
 API_URL = os.getenv('API_COUNTRIES_URL', 'https://www.apicountries.com/countries')
 
-@celery.task(bind=True, name='tasks.ingest_countries')
+@worker_ready.connect
+def startup_ingest(sender, **kwargs):
+    sender.app.send_task("tasks.ingest_countries")
+
+@celery.task(bind=True, name='tasks.ingest_countries',
+             autoretry_for=(requests.RequestException,),
+             retry_backoff=True,
+             retry_kwargs={'max_retries': 3})
 def ingest_countries(self):
     """
     Periodic task: fetch country list from external API and upsert into DB.
     Only updates rows where source == 'external' or creates new rows.
+    Retries on network errors with exponential backoff.
     """
     db = get_db_session()
     try:
-        try:
-            resp = requests.get(API_URL, timeout=30)
-            resp.raise_for_status()
-            countries = resp.json()
-        except Exception as e:
-            print('Failed to fetch countries:', e)
-            return 0
+        resp = requests.get(API_URL, timeout=30)
+        resp.raise_for_status()
+        countries = resp.json()
 
         count = 0
         for item in countries:
@@ -69,6 +74,9 @@ def ingest_countries(self):
             count += 1
         db.commit()
         return count
+    except requests.RequestException:
+        # Raise to trigger autoretry
+        raise
     except Exception:
         db.rollback()
         raise
