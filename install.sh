@@ -37,5 +37,5 @@ echo "  Run country-service tests: docker compose -f ${COMPOSE_FILE} run --rm ${
 echo "  Run notification-service tests: docker compose -f ${COMPOSE_FILE} run --rm notification-service pytest -q tests/"
 echo ""
 echo "GraphQL endpoint: http://localhost:8000/graphql"
-echo "Frontend demo: http://localhost:3000 (if frontend served)"
+echo "Frontend: http://localhost:8080"
 echo "Notifier health: http://localhost:8020/health"

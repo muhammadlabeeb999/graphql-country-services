@@ -4,8 +4,6 @@ def test_add_country_mutation(db_session, monkeypatch):
     import schema as s
     monkeypatch.setattr(s, 'get_db_session', lambda: db_session)
 
-    # Use correct field names: alpha2Code instead of iso2
-    # Pass JSON strings for JSON fields
     mutation = '''
     mutation { 
         addCountry(countryData: {
