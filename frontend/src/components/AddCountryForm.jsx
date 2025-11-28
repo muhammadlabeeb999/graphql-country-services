@@ -22,15 +22,6 @@ function empty() {
     }
 }
 
-function parseMaybeJson(value) {
-    if (value === null || value === undefined || value === '') return null
-    if (typeof value === 'object') return value
-    try {
-        return JSON.parse(value)
-    } catch (err) {
-        return value
-    }
-}
 
 function toGraphqlCountryInput(form) {
     return {
@@ -57,9 +48,9 @@ function toGraphqlCountryInput(form) {
                 ? parseFloat(form.longitude)
                 : null,
         flagUrl: form.flag_url || form.flagUrl || null,
-        timezones: parseMaybeJson(form.timezones),
-        currencies: parseMaybeJson(form.currencies),
-        languages: parseMaybeJson(form.languages)
+        timezones: null, // handled in submit
+        currencies: null, // handled in submit
+        languages: null // handled in submit
     }
 }
 
@@ -68,8 +59,22 @@ export default function AddCountryForm() {
     const [msg, setMsg] = useState(null)
     const [loading, setLoading] = useState(false)
 
+    // Extra state for structured inputs
+    const [currencyCode, setCurrencyCode] = useState('')
+    const [currencyName, setCurrencyName] = useState('')
+    const [langCode, setLangCode] = useState('')
+    const [langName, setLangName] = useState('')
+
     function setField(k, v) {
         setForm((f) => ({ ...f, [k]: v }))
+    }
+
+    function resetForm() {
+        setForm(empty())
+        setCurrencyCode('')
+        setCurrencyName('')
+        setLangCode('')
+        setLangName('')
     }
 
     async function submit(e) {
@@ -85,6 +90,10 @@ export default function AddCountryForm() {
             setMsg({ type: 'error', text: 'Alpha-2 code is required.' })
             return
         }
+        if (form.alpha3_code && form.alpha3_code.trim().length !== 3) {
+            setMsg({ type: 'error', text: 'Alpha-3 code must be exactly 3 characters.' })
+            return
+        }
 
         // If latitude/longitude are provided they must be valid floats
         if (form.latitude !== '' && isNaN(Number(form.latitude))) {
@@ -96,7 +105,36 @@ export default function AddCountryForm() {
             return
         }
 
-        const countryPayload = toGraphqlCountryInput(form)
+        // Construct JSON objects from structured inputs
+        let currencies = null
+        if (currencyCode.trim()) {
+            currencies = {
+                [currencyCode.trim().toUpperCase()]: {
+                    name: currencyName.trim(),
+                    symbol: ''
+                }
+            }
+        }
+
+        let languages = null
+        if (langCode.trim()) {
+            languages = {
+                [langCode.trim().toLowerCase()]: langName.trim()
+            }
+        }
+
+        // Parse timezones from comma-separated string
+        let timezones = null
+        if (form.timezones && form.timezones.trim()) {
+            timezones = form.timezones.split(',').map(t => t.trim()).filter(Boolean)
+        }
+
+        const countryPayload = {
+            ...toGraphqlCountryInput(form),
+            currencies,
+            languages,
+            timezones
+        }
 
         setLoading(true)
         try {
@@ -107,7 +145,7 @@ export default function AddCountryForm() {
 
             if (data.addCountry.ok) {
                 setMsg({ type: 'success', text: 'Country added: ' + data.addCountry.country.name })
-                setForm(empty())
+                resetForm()
             } else {
                 setMsg({ type: 'error', text: 'Add failed' })
             }
@@ -137,7 +175,13 @@ export default function AddCountryForm() {
                     onChange={(e) => setField('alpha2_code', e.target.value)}
                     maxLength={2}
                 />
-                <input className="input" placeholder="Alpha3 code" value={form.alpha3_code} onChange={(e) => setField('alpha3_code', e.target.value)} />
+                <input
+                    className="input"
+                    placeholder="Alpha3 code"
+                    value={form.alpha3_code}
+                    onChange={(e) => setField('alpha3_code', e.target.value)}
+                    maxLength={3}
+                />
                 <input className="input" placeholder="Capital" value={form.capital} onChange={(e) => setField('capital', e.target.value)} />
                 <input className="input" placeholder="Region" value={form.region} onChange={(e) => setField('region', e.target.value)} />
                 <input className="input" placeholder="Subregion" value={form.subregion} onChange={(e) => setField('subregion', e.target.value)} />
@@ -174,25 +218,41 @@ export default function AddCountryForm() {
 
                 <input className="input" placeholder="Flag URL" value={form.flag_url} onChange={(e) => setField('flag_url', e.target.value)} />
 
-                <textarea
-                    className="textarea"
-                    placeholder='timezones (JSON array) e.g. ["UTC+5:30"]'
+                <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <input
+                        className="input"
+                        placeholder="Currency Code (e.g. USD)"
+                        value={currencyCode}
+                        onChange={(e) => setCurrencyCode(e.target.value)}
+                    />
+                    <input
+                        className="input"
+                        placeholder="Currency Name (e.g. Dollar)"
+                        value={currencyName}
+                        onChange={(e) => setCurrencyName(e.target.value)}
+                    />
+                </div>
+
+                <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <input
+                        className="input"
+                        placeholder="Language Code (e.g. en)"
+                        value={langCode}
+                        onChange={(e) => setLangCode(e.target.value)}
+                    />
+                    <input
+                        className="input"
+                        placeholder="Language Name (e.g. English)"
+                        value={langName}
+                        onChange={(e) => setLangName(e.target.value)}
+                    />
+                </div>
+
+                <input
+                    className="input"
+                    placeholder="Timezones (comma separated, e.g. UTC+1, UTC+2)"
                     value={form.timezones}
                     onChange={(e) => setField('timezones', e.target.value)}
-                    style={{ gridColumn: '1 / -1' }}
-                />
-                <textarea
-                    className="textarea"
-                    placeholder='currencies (JSON) e.g. {"INR":{"name":"Rupee","symbol":"₹"}}'
-                    value={form.currencies}
-                    onChange={(e) => setField('currencies', e.target.value)}
-                    style={{ gridColumn: '1 / -1' }}
-                />
-                <textarea
-                    className="textarea"
-                    placeholder='languages (JSON) e.g. {"eng":"English"}'
-                    value={form.languages}
-                    onChange={(e) => setField('languages', e.target.value)}
                     style={{ gridColumn: '1 / -1' }}
                 />
 
@@ -200,7 +260,7 @@ export default function AddCountryForm() {
                     <button type="submit" className="btn" disabled={loading}>
                         {loading ? 'Adding…' : 'Add Country'}
                     </button>
-                    <button type="button" className="btn btn-secondary" onClick={() => setForm(empty())} disabled={loading}>
+                    <button type="button" className="btn btn-secondary" onClick={resetForm} disabled={loading}>
                         Reset
                     </button>
                 </div>

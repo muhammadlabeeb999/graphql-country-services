@@ -7,6 +7,8 @@ from psycopg2.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
 
 
+from graphene.types.generic import GenericScalar
+
 class CountryType(SQLAlchemyObjectType):
     class Meta:
         model = CountryModel
@@ -25,9 +27,9 @@ class CountryInput(graphene.InputObjectType):
     latitude = graphene.Float()
     longitude = graphene.Float()
     flag_url = graphene.String()
-    timezones = graphene.JSONString()
-    currencies = graphene.JSONString()
-    languages = graphene.JSONString()
+    timezones = GenericScalar()
+    currencies = GenericScalar()
+    languages = GenericScalar()
 
 class Query(graphene.ObjectType):
     country = graphene.Field(CountryType, name=graphene.String(), alpha2_code=graphene.String())
